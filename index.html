@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energy Pyramid Challenge</title>
+    <style>
+        /* This is the key fix to ensure the overlay displays correctly */
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevent body scroll while overlay is active */
+        }
+        
+        /* Scoped CSS for the widget container */
+        #energy-pyramid-widget-container {
+            font-family: 'Inter', sans-serif;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 100%;
+            overflow-x: hidden;
+            color: #1a202c;
+            line-height: 1.5;
+            box-sizing: border-box;
+        }
+
+        #energy-pyramid-widget-container * {
+            box-sizing: border-box;
+        }
+        
+        #energy-pyramid-widget-container h1,
+        #energy-pyramid-widget-container h2,
+        #energy-pyramid-widget-container p {
+            margin: 0;
+        }
+        .text-shadow {
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .pyramid-level {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .pyramid-level.producers { background-color: #dcfce7; }
+        .pyramid-level.primary { background-color: #fef9e3; }
+        .pyramid-level.secondary { background-color: #fef2f2; }
+        .pyramid-level.tertiary { background-color: #fee2f2; }
+        .btn-green {
+            background: linear-gradient(to right, #4ade80, #16a34a);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-green:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-green:disabled {
+            background: #a1a1a1;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .btn-red {
+            background: linear-gradient(to right, #f87171, #ef4444);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-red:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .message-box {
+            background-color: #f3f4f6;
+            border: 1px solid #d1d5db;
+            padding: 0.5rem 1rem;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            color: #4b5563;
+            max-width: 200px;
+            width: auto;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .animate-bounce-slow {
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(-5%);
+                animation-timing-function: cubic-bezier(0.8,0,1,1);
+            }
+            50% {
+                transform: translateY(0);
+                animation-timing-function: cubic-bezier(0,0,0.2,1);
+            }
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        .answer-btn {
+            background-color: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            color: #4b5563;
+            transition: background-color 0.2s;
+        }
+        .answer-btn:hover:not(:disabled) {
+            background-color: #e5e7eb;
+        }
+        .answer-btn.correct {
+            background-color: #86efac;
+            color: #16a34a;
+            border-color: #16a34a;
+        }
+        .answer-btn.incorrect {
+            background-color: #fca5a5;
+            color: #dc2626;
+            border-color: #dc2626;
+        }
+    </style>
+</head>
+<body>
+    <div id="energy-pyramid-widget-container" class="antialiased font-sans">
+        <!-- HTML structure -->
+        <div class="container mx-auto p-4 md:p-8">
+            <!-- Title and Introduction -->
+            <div class="text-center mb-8">
+                <h1 class="text-3xl md:text-4xl font-extrabold text-green-700 mb-2 text-shadow">The Energy Pyramid Challenge!</h1>
+                <p class="text-gray-600 text-base md:text-lg">
+                    Let's visualize the 10% rule with an energy pyramid. We'll start with the sun's energy at the bottom and see what's left for the top of the food chain!
+                </p>
+            </div>
+
+            <!-- Main Pyramid Container -->
+            <div id="pyramidContainer" class="flex flex-col items-center space-y-4 hidden">
+                
+                <!-- Tertiary Consumer Level with Button and Message Box -->
+                <div class="flex items-center space-x-4">
+                    <div id="tertiaryLevel" class="pyramid-level tertiary w-48 h-28 rounded-lg p-3 flex flex-col justify-center items-center text-center">
+                        <div class="mb-1 text-2xl">🦅</div>
+                        <h2 class="text-base font-bold text-red-800">Tertiary Consumer (Eagle)</h2>
+                        <p id="tertiaryEnergy" class="text-lg font-extrabold text-red-900 mt-1">???</p>
+                    </div>
+                    <div class="flex-shrink-0 flex items-center space-x-2">
+                        <div id="tertiaryMessageBox" class="message-box hidden"></div>
+                        <button id="transferToTertiaryBtn" class="px-4 py-2 rounded-full text-white font-bold btn-green w-32" disabled>
+                            Feed the Eagle!
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Secondary Consumer Level with Button and Message Box -->
+                <div class="flex items-center space-x-4">
+                    <div id="secondaryLevel" class="pyramid-level secondary w-64 h-28 rounded-lg p-3 flex flex-col justify-center items-center text-center">
+                        <div class="mb-1 text-2xl">🐍</div>
+                        <h2 class="text-base font-bold text-orange-800">Secondary Consumer (Snake)</h2>
+                        <p id="secondaryEnergy" class="text-lg font-extrabold text-orange-900 mt-1">???</p>
+                    </div>
+                    <div class="flex-shrink-0 flex items-center space-x-2">
+                        <div id="secondaryMessageBox" class="message-box hidden"></div>
+                        <button id="transferToSecondaryBtn" class="px-4 py-2 rounded-full text-white font-bold btn-green w-32" disabled>
+                            Feed the Snake!
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Primary Consumer Level with Button and Message Box -->
+                <div class="flex items-center space-x-4">
+                    <div id="primaryLevel" class="pyramid-level primary w-80 h-28 rounded-lg p-3 flex flex-col justify-center items-center text-center">
+                        <div class="mb-1 text-2xl">🐇</div>
+                        <h2 class="text-base font-bold text-yellow-800">Primary Consumer (Rabbit)</h2>
+                        <p id="primaryEnergy" class="text-lg font-extrabold text-yellow-900 mt-1">???</p>
+                    </div>
+                    <div class="flex-shrink-0 flex items-center space-x-2">
+                        <div id="primaryMessageBox" class="message-box hidden"></div>
+                        <button id="transferToPrimaryBtn" class="px-4 py-2 rounded-full text-white font-bold btn-green w-32" disabled>
+                            Feed the Rabbit!
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Producers Level with Button and Message Box -->
+                <!-- The message box is now placed back on the side to prevent vertical overflow -->
+                <div class="flex items-center space-x-4">
+                    <div id="producerLevel" class="pyramid-level producers w-96 h-28 rounded-lg p-3 flex flex-col justify-center items-center text-center">
+                        <div class="mb-1 text-2xl animate-bounce-slow">🌻</div>
+                        <h2 class="text-base font-bold text-green-800">Producers (Plants)</h2>
+                        <p id="producerEnergy" class="text-lg font-extrabold text-green-900 mt-1">???</p>
+                    </div>
+                    <div class="flex-shrink-0 flex items-center space-x-2">
+                        <div id="producerMessageBox" class="message-box hidden"></div>
+                        <button id="generateProducerBtn" class="px-4 py-2 rounded-full text-white font-bold btn-green w-32" disabled>
+                            Generate Producers
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Action Buttons at bottom -->
+            <div class="mt-8 flex flex-col items-center space-y-4">
+                <button id="resetBtn" class="px-4 py-2 rounded-full text-white font-bold btn-red w-32 hidden">
+                    Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- Intro Overlay -->
+        <div id="introOverlay" class="overlay">
+            <div class="modal">
+                <h2 class="text-xl md:text-2xl font-extrabold mb-4 text-green-700">The 10% Rule Explained</h2>
+                <p class="text-gray-700 text-base mb-6">
+                    The **10% Rule** is a fundamental concept in ecology. It states that only about **10% of the energy** from one trophic level is passed on to the next. The remaining 90% is lost as heat or used for metabolic processes by the organism itself.
+                </p>
+                <p class="text-gray-700 text-base mb-6">
+                    In this simulation, we'll start with a large amount of solar energy captured by producers and see how little energy makes it to the top of the food chain.
+                </p>
+                <div class="text-center">
+                    <button id="introStartBtn" class="px-6 py-3 rounded-full text-white font-bold text-base btn-green w-56">
+                        Let's Begin!
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Overlay -->
+        <div id="quizOverlay" class="overlay hidden">
+            <div class="modal">
+                <div class="flex flex-col items-center text-center">
+                    <h2 class="text-2xl font-bold text-green-700 mb-2">Quiz Time!</h2>
+                    <p id="quizQuestionCount" class="text-gray-500 text-sm mb-4">Question 1 of 4</p>
+                    <p id="quizQuestion" class="text-lg text-gray-800 font-semibold mb-6"></p>
+                    <div id="answerButtons" class="flex flex-col w-full space-y-3">
+                        <!-- Answer buttons will be dynamically added here -->
+                    </div>
+                    <button id="nextQuestionBtn" class="px-6 py-3 rounded-full text-white font-bold btn-green w-56 mt-6 hidden">
+                        Next Question
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Overlay -->
+        <div id="resultsOverlay" class="overlay hidden">
+            <div class="modal text-center">
+                <div id="passScreen" class="hidden">
+                    <h2 class="text-2xl md:text-3xl font-extrabold text-green-700 mb-4">Quiz Complete!</h2>
+                    <p class="text-xl text-gray-700 font-bold mb-4">Congratulations, you passed!</p>
+                    <p id="passScore" class="text-lg text-gray-800 font-semibold mb-4"></p>
+                    <p class="text-base text-gray-600 mb-6">Please provide the following code to your teacher:</p>
+                    <div class="px-4 py-2 bg-gray-100 rounded-lg border border-gray-300 font-mono text-xl text-gray-800 inline-block mb-6">
+                        <span id="passCode"></span>
+                    </div>
+                    <button id="passResetBtn" class="px-6 py-3 rounded-full text-white font-bold btn-red w-48">
+                        Done
+                    </button>
+                </div>
+                <div id="failScreen" class="hidden">
+                    <h2 class="text-2xl md:text-3xl font-extrabold text-red-600 mb-4">Quiz Complete!</h2>
+                    <p class="text-xl text-gray-700 font-bold mb-4">You did not pass the quiz.</p>
+                    <p id="failScore" class="text-lg text-gray-800 font-semibold mb-4"></p>
+                    <p class="text-base text-gray-600 mb-6">No problem, you can try again! Let's go through the simulation one more time.</p>
+                    <button id="failRedoBtn" class="px-6 py-3 rounded-full text-white font-bold btn-red w-48">
+                        Redo Simulation
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script to load Tailwind and Inter font -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/inter-font"></script>
+
+    <script>
+        // Use DOMContentLoaded to ensure the script runs only after the DOM is fully loaded.
+        document.addEventListener('DOMContentLoaded', () => {
+            // Main logic wrapped in an IIFE to avoid global conflicts
+            (function() {
+                // Global variables for energy levels
+                const baseEnergy = 1000000;
+                let producerEnergy = 0;
+                let primaryEnergy = 0;
+                let secondaryEnergy = 0;
+                let tertiaryEnergy = 0;
+                
+                // Quiz state variables
+                let quizScore = 0;
+                let currentQuestionIndex = 0;
+                let questionAnswered = false;
+                let shuffledQuizQuestions = []; // New array for shuffled questions
+
+                // Quiz questions data. The correct answer is now stored as text.
+                const quizQuestions = [
+                    {
+                        question: "According to the 10% rule, approximately how much energy is transferred from one trophic level to the next?",
+                        choices: ["100%", "50%", "10%", "1%"],
+                        correctAnswer: "10%"
+                    },
+                    {
+                        question: "If the producers at the bottom of the pyramid have 50,000 units of energy, how much energy would the secondary consumers have?",
+                        choices: ["500 units", "5,000 units", "50 units", "5 units"],
+                        correctAnswer: "500 units"
+                    },
+                    {
+                        question: "If a primary consumer gets 150 units of energy, how much energy did the producers have to begin with?",
+                        choices: ["15 units", "1,500 units", "15,000 units", "150 units"],
+                        correctAnswer: "1,500 units"
+                    },
+                    {
+                        question: "If the tertiary consumers have 10 units of energy, how much energy did the producers have?",
+                        choices: ["100 units", "1,000 units", "10,000 units", "100,000 units"],
+                        correctAnswer: "10,000 units"
+                    },
+                    {
+                        question: "In a food chain, what is the name for the level that contains organisms that eat other organisms?",
+                        choices: ["Producer", "Consumer", "Decomposer", "Abiotic Factor"],
+                        correctAnswer: "Consumer"
+                    },
+                    {
+                        question: "A plant is a producer because it...",
+                        choices: ["eats other plants to get energy.", "creates its own food using sunlight.", "decomposes dead matter.", "consumes water and soil."],
+                        correctAnswer: "creates its own food using sunlight."
+                    },
+                    {
+                        question: "If the producers have 250,000 units of energy, how much energy would a primary consumer receive?",
+                        choices: ["25,000 units", "250 units", "2,500 units", "25 units"],
+                        correctAnswer: "25,000 units"
+                    },
+                    {
+                        question: "What happens to the remaining 90% of energy that is not transferred between trophic levels?",
+                        choices: ["It is stored for later use.", "It is used by the organism or lost as heat.", "It is passed down to the decomposers.", "It disappears completely."],
+                        correctAnswer: "It is used by the organism or lost as heat."
+                    },
+                    {
+                        question: "If a secondary consumer has 80 units of energy, how much energy would the tertiary consumer get?",
+                        choices: ["8 units", "80 units", "800 units", "8,000 units"],
+                        correctAnswer: "8 units"
+                    },
+                    {
+                        question: "What is the primary source of energy for most ecosystems on Earth?",
+                        choices: ["The Moon", "The Sun", "Wind Power", "Fossil Fuels"],
+                        correctAnswer: "The Sun"
+                    }
+                ];
+
+                /**
+                 * Fisher-Yates shuffle algorithm to randomize an array.
+                 * @param {Array} array The array to shuffle.
+                 * @returns {Array} The shuffled array.
+                 */
+                function shuffleArray(array) {
+                    for (let i = array.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [array[i], array[j]] = [array[j], array[i]];
+                    }
+                    return array;
+                }
+                
+                // Get the widget container
+                const widgetContainer = document.getElementById('energy-pyramid-widget-container');
+                if (!widgetContainer) {
+                    console.error("The widget container was not found.");
+                    return;
+                }
+
+                // Get all the DOM elements relative to the widget container
+                const introOverlay = widgetContainer.querySelector('#introOverlay');
+                const introStartBtn = widgetContainer.querySelector('#introStartBtn');
+                const pyramidContainer = widgetContainer.querySelector('#pyramidContainer');
+                const resetBtn = widgetContainer.querySelector('#resetBtn');
+
+                const producerEnergyDisplay = widgetContainer.querySelector('#producerEnergy');
+                const primaryEnergyDisplay = widgetContainer.querySelector('#primaryEnergy');
+                const secondaryEnergyDisplay = widgetContainer.querySelector('#secondaryEnergy');
+                const tertiaryEnergyDisplay = widgetContainer.querySelector('#tertiaryEnergy');
+
+                const producerMessageBox = widgetContainer.querySelector('#producerMessageBox');
+                const primaryMessageBox = widgetContainer.querySelector('#primaryMessageBox');
+                const secondaryMessageBox = widgetContainer.querySelector('#secondaryMessageBox');
+                const tertiaryMessageBox = widgetContainer.querySelector('#tertiaryMessageBox');
+                const producerLevel = widgetContainer.querySelector('#producerLevel');
+                
+                const generateProducerBtn = widgetContainer.querySelector('#generateProducerBtn');
+                const transferToPrimaryBtn = widgetContainer.querySelector('#transferToPrimaryBtn');
+                const transferToSecondaryBtn = widgetContainer.querySelector('#transferToSecondaryBtn');
+                const transferToTertiaryBtn = widgetContainer.querySelector('#transferToTertiaryBtn');
+
+                // Quiz DOM elements
+                const quizOverlay = widgetContainer.querySelector('#quizOverlay');
+                const quizQuestionCount = widgetContainer.querySelector('#quizQuestionCount');
+                const quizQuestionEl = widgetContainer.querySelector('#quizQuestion');
+                const answerButtonsContainer = widgetContainer.querySelector('#answerButtons');
+                const nextQuestionBtn = widgetContainer.querySelector('#nextQuestionBtn');
+
+                // Results DOM elements
+                const resultsOverlay = widgetContainer.querySelector('#resultsOverlay');
+                const passScreen = widgetContainer.querySelector('#passScreen');
+                const failScreen = widgetContainer.querySelector('#failScreen');
+                const passCodeEl = widgetContainer.querySelector('#passCode');
+                const passScoreEl = widgetContainer.querySelector('#passScore');
+                const failScoreEl = widgetContainer.querySelector('#failScore');
+                const passResetBtn = widgetContainer.querySelector('#passResetBtn');
+                const failRedoBtn = widgetContainer.querySelector('#failRedoBtn');
+
+                /**
+                 * Generates a random alphanumeric string with the quiz score for the pass code.
+                 * @returns {string} The generated pass code.
+                 */
+                function generatePassCode() {
+                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                    let code = 'N';
+                    code += quizScore.toString(); // Add the score directly
+                    // Generate a fixed number of random characters to maintain a consistent code length
+                    for (let i = 0; i < 7; i++) {
+                        code += chars.charAt(Math.floor(Math.random() * chars.length));
+                    }
+                    code += 'P';
+                    return code;
+                }
+
+                /**
+                 * Sets the width of the initial message box to match the producer level box.
+                 */
+                function setInitialMessageBoxWidth() {
+                    // Removed the code that previously set a fixed width based on the producer box,
+                    // as the CSS now handles a more flexible, responsive width.
+                }
+
+                /**
+                 * Shows a message in a specific message box and hides the others.
+                 * @param {HTMLElement} box The message box element to show the message in.
+                 * @param {string} message The message to display.
+                 */
+                function showMessage(box, message) {
+                    // Hide all message boxes
+                    producerMessageBox.classList.add('hidden');
+                    primaryMessageBox.classList.add('hidden');
+                    secondaryMessageBox.classList.add('hidden');
+                    tertiaryMessageBox.classList.add('hidden');
+                    
+                    // Show the specific message box
+                    box.innerText = message;
+                    box.classList.remove('hidden');
+                }
+                
+                /**
+                 * Resets the application to its initial state, ready for the user to start.
+                 */
+                function resetApp() {
+                    // Reset simulation state
+                    producerEnergy = 0;
+                    primaryEnergy = 0;
+                    secondaryEnergy = 0;
+                    tertiaryEnergy = 0;
+                    
+                    producerEnergyDisplay.innerText = `???`;
+                    primaryEnergyDisplay.innerText = `???`;
+                    secondaryEnergyDisplay.innerText = `???`;
+                    tertiaryEnergyDisplay.innerText = `???`;
+
+                    // Reset quiz state
+                    quizScore = 0;
+                    currentQuestionIndex = 0;
+                    questionAnswered = false;
+                    shuffledQuizQuestions = shuffleArray([...quizQuestions]); // Shuffle questions on reset
+
+                    // Hide all message boxes and result screens
+                    producerMessageBox.classList.add('hidden');
+                    primaryMessageBox.classList.add('hidden');
+                    secondaryMessageBox.classList.add('hidden');
+                    tertiaryMessageBox.classList.add('hidden');
+                    quizOverlay.classList.add('hidden');
+                    resultsOverlay.classList.add('hidden');
+                    pyramidContainer.classList.add('hidden'); // Ensure the main pyramid container is hidden
+                    
+                    // Disable and hide all action buttons
+                    generateProducerBtn.disabled = true;
+                    transferToPrimaryBtn.disabled = true;
+                    transferToPrimaryBtn.classList.add('hidden');
+                    transferToSecondaryBtn.disabled = true;
+                    transferToSecondaryBtn.classList.add('hidden');
+                    transferToTertiaryBtn.disabled = true;
+                    transferToTertiaryBtn.classList.add('hidden');
+                    resetBtn.classList.add('hidden');
+
+                    // Show the intro overlay
+                    introOverlay.classList.remove('hidden');
+
+                    // Set initial message box width
+                    setInitialMessageBoxWidth();
+                }
+
+                /**
+                 * Renders the current quiz question on the screen.
+                 */
+                function showQuizQuestion() {
+                    const currentQuestion = shuffledQuizQuestions[currentQuestionIndex];
+                    
+                    // Update question count and text
+                    quizQuestionCount.innerText = `Question ${currentQuestionIndex + 1} of ${shuffledQuizQuestions.length}`;
+                    quizQuestionEl.innerText = currentQuestion.question;
+
+                    // Clear previous answer buttons
+                    answerButtonsContainer.innerHTML = '';
+                    nextQuestionBtn.classList.add('hidden');
+                    questionAnswered = false;
+
+                    // Shuffle the answer choices for this question
+                    const shuffledChoices = shuffleArray([...currentQuestion.choices]);
+                    
+                    // Find the new index of the correct answer
+                    const newCorrectIndex = shuffledChoices.indexOf(currentQuestion.correctAnswer);
+
+                    // Create and append new answer buttons
+                    shuffledChoices.forEach((choice, index) => {
+                        const button = document.createElement('button');
+                        button.innerText = choice;
+                        button.classList.add('answer-btn', 'px-4', 'py-2', 'rounded-full', 'font-semibold', 'w-full');
+                        // Pass the correct answer index for this shuffled set
+                        button.addEventListener('click', () => handleAnswerClick(index, newCorrectIndex, button));
+                        answerButtonsContainer.appendChild(button);
+                    });
+                }
+
+                /**
+                 * Handles a user's answer click.
+                 * @param {number} selectedIndex The index of the selected answer.
+                 * @param {number} correctIndex The index of the correct answer in the current shuffled choices.
+                 * @param {HTMLElement} button The button element that was clicked.
+                 */
+                function handleAnswerClick(selectedIndex, correctIndex, button) {
+                    if (questionAnswered) return;
+                    questionAnswered = true;
+
+                    const allAnswerButtons = answerButtonsContainer.querySelectorAll('.answer-btn');
+                    
+                    // Check if the answer is correct
+                    if (selectedIndex === correctIndex) {
+                        button.classList.add('correct');
+                        quizScore++;
+                    } else {
+                        button.classList.add('incorrect');
+                        // Find and highlight the correct answer
+                        allAnswerButtons[correctIndex].classList.add('correct');
+                    }
+
+                    // Disable all buttons
+                    allAnswerButtons.forEach(btn => btn.disabled = true);
+                    nextQuestionBtn.classList.remove('hidden');
+                }
+
+                /**
+                 * Shows the final results screen based on the user's score.
+                 */
+                function showQuizResults() {
+                    quizOverlay.classList.add('hidden');
+                    resultsOverlay.classList.remove('hidden');
+                    
+                    const totalQuestions = shuffledQuizQuestions.length;
+                    
+                    // Update the score display for both screens
+                    const scoreText = `You got ${quizScore} out of ${totalQuestions} correct!`;
+                    passScoreEl.innerText = scoreText;
+                    failScoreEl.innerText = scoreText;
+
+                    const passingScore = 8; // Pass with 8 or more correct answers
+                    if (quizScore >= passingScore) {
+                        passScreen.classList.remove('hidden');
+                        failScreen.classList.add('hidden');
+                        passCodeEl.innerText = generatePassCode();
+                    } else {
+                        passScreen.classList.add('hidden');
+                        failScreen.classList.remove('hidden');
+                    }
+                }
+
+                // Event listener for the "Let's Begin" button in the intro modal
+                introStartBtn.addEventListener('click', () => {
+                    // Hide the intro overlay
+                    introOverlay.classList.add('hidden');
+                    // Show the main simulation container
+                    pyramidContainer.classList.remove('hidden');
+                    resetBtn.classList.remove('hidden');
+                    // Enable the first button and show its message
+                    generateProducerBtn.disabled = false;
+                    showMessage(producerMessageBox, `The producers (plants) are ready! Click 'Generate Producers' to give them energy.`);
+                });
+
+                // Event listener for the "Generate Producers" button
+                generateProducerBtn.addEventListener('click', () => {
+                    producerEnergy = baseEnergy;
+                    producerEnergyDisplay.innerText = `${producerEnergy.toLocaleString()} units`;
+                    generateProducerBtn.disabled = true;
+                    transferToPrimaryBtn.disabled = false;
+                    transferToPrimaryBtn.classList.remove('hidden');
+                    showMessage(producerMessageBox, `The plants have captured a total of ${producerEnergy.toLocaleString()} units of solar energy! Now let's see what happens when the rabbit eats them.`);
+                });
+
+                // Event listener for the "Feed the Rabbit!" button
+                transferToPrimaryBtn.addEventListener('click', () => {
+                    primaryEnergy = producerEnergy * 0.10;
+                    primaryEnergyDisplay.innerText = `${primaryEnergy.toLocaleString()} units`;
+                    transferToPrimaryBtn.disabled = true;
+                    transferToSecondaryBtn.disabled = false;
+                    transferToSecondaryBtn.classList.remove('hidden');
+                    showMessage(primaryMessageBox, `Whoa! The rabbit only gets 10% of the energy: ${producerEnergy.toLocaleString()} * 0.10 = ${primaryEnergy.toLocaleString()} units!`);
+                });
+
+                // Event listener for the "Feed the Snake!" button
+                transferToSecondaryBtn.addEventListener('click', () => {
+                    secondaryEnergy = primaryEnergy * 0.10;
+                    secondaryEnergyDisplay.innerText = `${secondaryEnergy.toLocaleString()} units`;
+                    transferToSecondaryBtn.disabled = true;
+                    transferToTertiaryBtn.disabled = false;
+                    transferToTertiaryBtn.classList.remove('hidden');
+                    showMessage(secondaryMessageBox, `The snake gets 10% of the rabbit's energy: ${primaryEnergy.toLocaleString()} * 0.10 = ${secondaryEnergy.toLocaleString()} units.`);
+                });
+
+                // Event listener for the "Feed the Eagle!" button
+                transferToTertiaryBtn.addEventListener('click', () => {
+                    tertiaryEnergy = secondaryEnergy * 0.10;
+                    tertiaryEnergyDisplay.innerText = `${tertiaryEnergy.toLocaleString()} units`;
+                    transferToTertiaryBtn.disabled = true;
+                    showMessage(tertiaryMessageBox, `The eagle gets 10% of the snake's energy: ${secondaryEnergy.toLocaleString()} * 0.10 = ${tertiaryEnergy.toLocaleString()} units. It's a tough life at the top!`);
+                    
+                    // When the simulation is complete, start the quiz
+                    setTimeout(() => {
+                        pyramidContainer.classList.add('hidden');
+                        resetBtn.classList.add('hidden');
+                        quizOverlay.classList.remove('hidden');
+                        showQuizQuestion();
+                    }, 2000); // Wait 2 seconds before showing the quiz
+                });
+
+                // Event listener for the "Next Question" button
+                nextQuestionBtn.addEventListener('click', () => {
+                    currentQuestionIndex++;
+                    if (currentQuestionIndex < shuffledQuizQuestions.length) {
+                        showQuizQuestion();
+                    } else {
+                        showQuizResults();
+                    }
+                });
+
+                // Event listener for the "Reset" button
+                resetBtn.addEventListener('click', () => {
+                    resetApp();
+                });
+                
+                // Event listeners for the results screen buttons
+                passResetBtn.addEventListener('click', () => {
+                    resetApp();
+                });
+                
+                failRedoBtn.addEventListener('click', () => {
+                    resetApp();
+                });
+
+                // Initial setup to ensure the app starts with the intro overlay
+                resetApp();
+
+            })();
+        });
+    </script>
+</body>
+</html>
